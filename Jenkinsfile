@@ -1,17 +1,54 @@
 pipeline {
   agent any
-  tools { nodejs 'node18' }      // puts node/npm on PATH
-
-  options { timestamps(); skipDefaultCheckout(true) }
+  tools { nodejs 'node18' }
 
   stages {
     stage('Checkout') {
-      steps { git branch: 'main', url: 'https://github.com/Cyrus0107/8.2CDevSecOps2.git' }
+      steps {
+        git branch: 'main', url: 'https://github.com/Cyrus0107/8.2CDevSecOps2.git'
+      }
     }
-    stage('Install Dependencies') { steps { sh 'npm ci || npm install' } }
-    stage('Run Tests')            { steps { sh 'npm test || true' } }
-    stage('Generate Coverage')    { steps { sh 'npm run coverage || true' } }
-    stage('NPM Audit (Security)'){ steps { sh 'npm audit || true' } }
+
+    stage('Install Dependencies') {
+      steps {
+        sh 'npm install'
+      }
+    }
+
+    stage('Run Tests') {
+      steps {
+        sh 'npm test || true'
+      }
+      post {
+        always {
+          emailext(
+            subject: "Build #${env.BUILD_NUMBER} - Test Stage Result: ${currentBuild.currentResult}",
+            body: """<p>Hello Team,</p>
+                     <p>The test stage has completed with status: <b>${currentBuild.currentResult}</b>.</p>
+                     <p>See attached logs for details.</p>""",
+            to: "your_email@example.com",
+            attachLog: true
+          )
+        }
+      }
+    }
+
+    stage('NPM Audit (Security)') {
+      steps {
+        sh 'npm audit --audit-level=low || true'
+      }
+      post {
+        always {
+          emailext(
+            subject: "Build #${env.BUILD_NUMBER} - Security Scan Result: ${currentBuild.currentResult}",
+            body: """<p>Hello Team,</p>
+                     <p>The security scan stage has completed with status: <b>${currentBuild.currentResult}</b>.</p>
+                     <p>See attached logs for details.</p>""",
+            to: "your_email@example.com",
+            attachLog: true
+          )
+        }
+      }
+    }
   }
-  post { always { archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true } }
 }
