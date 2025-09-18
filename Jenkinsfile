@@ -1,6 +1,6 @@
-pipeline {
+  pipeline {
   agent any
-  tools { nodejs 'node18' }     // Manage Jenkins → Tools → NodeJS installations → "node18"
+  tools { nodejs 'node18' }   // Or swap to a docker { image 'node:18' } agent
 
   environment {
     NOTIFY_TO = 'cyruskwok107@gmail.com'
@@ -23,49 +23,46 @@ pipeline {
     }
 
     stage('Run Tests') {
-      steps { sh 'npm test || true' }   // don’t fail the pipeline for the task brief
+      steps {
+        // stream to console and also save a file we can attach
+        sh 'npm test 2>&1 | tee test.log || true'
+      }
       post {
         always {
           emailext(
-            subject: "Jenkins Build #${env.BUILD_NUMBER} — TEST stage: ${currentBuild.currentResult}",
+            subject: "Build #${env.BUILD_NUMBER} — TEST stage: ${currentBuild.currentResult}",
             to: env.NOTIFY_TO,
-            body: """<p>Test stage finished with: <b>${currentBuild.currentResult}</b>.</p>
+            body: """<p>Test stage completed with: <b>${currentBuild.currentResult}</b>.</p>
                      <p>Job: ${env.JOB_NAME} — Build: #${env.BUILD_NUMBER}</p>
-                     <p>See attached console log.</p>""",
-            attachLog: true,
-            compressLog: true
+                     <p>Logs attached.</p>""",
+            attachLog: true,           // attach full console log
+            compressLog: true,
+            attachmentsPattern: 'test.log'  // also attach the stage log file
           )
         }
       }
     }
 
     stage('Generate Coverage') {
-      steps {
-        // If your package.json lacks "coverage" this still passes because of '|| true'
-        sh 'npm run coverage || true'
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
-        }
-      }
+      steps { sh 'npm run coverage || true' }
+      post { always { archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true } }
     }
 
     stage('NPM Audit (Security)') {
       steps {
-        // Show all vulns in the console so it’s visible for your demo video
-        sh 'npm audit --audit-level=low || true'
+        // JSON is handy for marking; still shows in console via tee
+        sh 'npm audit --audit-level=low --json 2>&1 | tee npm-audit.json || true'
       }
       post {
         always {
           emailext(
-            subject: "Jenkins Build #${env.BUILD_NUMBER} — SECURITY SCAN: ${currentBuild.currentResult}",
+            subject: "Build #${env.BUILD_NUMBER} — SECURITY SCAN: ${currentBuild.currentResult}",
             to: env.NOTIFY_TO,
             body: """<p>Security scan (npm audit) finished with: <b>${currentBuild.currentResult}</b>.</p>
-                     <p>Job: ${env.JOB_NAME} — Build: #${env.BUILD_NUMBER}</p>
-                     <p>Console log attached. Review vulnerabilities listed by severity.</p>""",
+                     <p>Review the vulnerability list in the console and the attached JSON.</p>""",
             attachLog: true,
-            compressLog: true
+            compressLog: true,
+            attachmentsPattern: 'npm-audit.json'
           )
         }
       }
@@ -75,13 +72,10 @@ pipeline {
   post {
     failure {
       emailext(
-        subject: "Jenkins Build #${env.BUILD_NUMBER} — OVERALL: FAILURE",
+        subject: "Build #${env.BUILD_NUMBER} — OVERALL: FAILURE",
         to: env.NOTIFY_TO,
-        body: """<p>Build failed.</p>
-                 <p>Job: ${env.JOB_NAME} — Build: #${env.BUILD_NUMBER}</p>
-                 <p>Console log attached.</p>""",
-        attachLog: true,
-        compressLog: true
+        body: "<p>Build failed. See attached console log for details.</p>",
+        attachLog: true, compressLog: true
       )
     }
   }
