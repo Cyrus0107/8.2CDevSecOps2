@@ -3,9 +3,9 @@
   tools { nodejs 'node18' }   // Or swap to a docker { image 'node:18' } agent
 
   environment {
-    NOTIFY_TO = 'cyruskwok107@gmail.com'
-    REPO_URL  = 'https://github.com/Cyrus0107/8.2CDevSecOps2.git'
-    BRANCH    = 'main'
+    NOTIFY_TO = "cyruskwok107@gmail.com"
+    REPO_URL  = "https://github.com/Cyrus0107/8.2CDevSecOps2.git"
+    BRANCH    = "main"
   }
 
   options {
