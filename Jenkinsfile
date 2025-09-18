@@ -26,7 +26,7 @@ pipeline {
             body: """<p>Hello Team,</p>
                      <p>The test stage has completed with status: <b>${currentBuild.currentResult}</b>.</p>
                      <p>See attached logs for details.</p>""",
-            to: "your_email@example.com",
+            to: "cyruskwok107@gmail.com",
             attachLog: true
           )
         }
